@@ -156,40 +156,99 @@ class CMOH:
         self.relatives = relatives
 
     def is_informative(self):
-        if self.__more_women_with_more_ages(3, 65):
+        return True if self.__informative_cmoh_test_1() or self.__informative_cmodh_test_2() or self.__informative_cmod_test_3() else False
+
+    def diagnosis(self):
+        return self.associated_cases()
+
+    def associated_cases(self):
+        return self.__associated_cmoh_test_1() or self.__associated_cmoh_test_2() or self.__associated_cmoh_test_3()
+
+    def __associated_cmoh_test_1(self):
+        associated1 = [r for r in self.relatives if
+                       self.__has_tumor_type_and_name(r.tumors, TYPE_OF_TUMOR, [CANCER_DE_MAMA]) and (
+                           datetime.datetime.now().year() - r.birth_date.year()) < 30]
+        associated2 = [r for r in self.relatives if
+                       self.__has_tumor_type_and_name(r.tumors, TYPE_OF_TUMOR, [CANCER_DE_MAMA_BILATERAL]) and (
+                           datetime.datetime.now().year() - r.birth_date.year()) < 40]
+        associated3 = [r for r in self.relatives if
+                       len(r.tumors) >= 2 and self.__has_tumor_name(r.tumors, [CANCER_DE_MAMA, CANCER_DE_OVARIO])]
+
+        return True if len(associated1) >= 1 or len(associated2) >= 1 or len(associated3) >= 1 else False
+
+    def __associated_cmoh_test_2(self):
+        mama_cases = [r for r in self.relatives if r.has_tumor and self.__has_tumor_name(r.tumors, [CANCER_DE_MAMA])]
+        ovario_cases = [r for r in self.relatives if
+                        r.has_tumor and self.__has_tumor_name(r.tumors, [CANCER_DE_OVARIO])]
+        mama_varon_cases = [r for r in mama_cases if r.gender == "Hombre"]
+        mama_mujer_cases = [r for r in mama_cases + ovario_cases if r.gender == "Mujer"]
+        mama_cancer_before_50 = [r for r in mama_cases if (datetime.datetime.now().year() - r.birth_date.year() < 50)]
+
+        if len(mama_cases) >= 2 and (
+                                len(ovario_cases) >= 2 or len(set(mama_cases).difference(ovario_cases)) >= 1 or len(
+                        mama_varon_cases) >= 1 and len(mama_mujer_cases) >= 1 or len(mama_cancer_before_50) == 2):
             return True
-        elif self.__more_tumor_has_list_type_and_name_than(TYPE_OF_TUMOR, [CANCER_DE_MAMA, CANCER_DE_OVARIO], 2):
-            if self.__tumors_has_name_and_age_less_than(CANCER_DE_MAMA_BILATERAL, 50) or self.__tumors_has_name_and_age_less_than(CANCER_DE_MAMA, 50):
-                return True
-            return False
-        else:
-            if (alguna de estas otras):
-                return True
-            return False
+        return False
 
-    def __more_women_with_more_ages(self, num_women, age):
-        return len([r for r in self.relatives if
-                    (datetime.datetime.now().year() - r.birth_date.year()) >= age and r.gender == 'Mujer']) >= num_women
-
-    def __more_women_with_more_ages_and_tumor_name(self, num_women, age, tumor_name):
-        return len([r for r in self.relatives if
-                    (datetime.datetime.now().year() - r.birth_date.year()) >= age and r.gender == 'Mujer'
-                    and self.__tumors_has_name(r.tumors, tumor_name)]) >= num_women
-
-    def __more_tumor_has_list_type_and_name_than(self, type_searched, tumor_name, nrelatives):
+    def __associated_cmoh_test_3(self):
         return len(
-            [r for r in self.relatives if self.__tumors_has_alistof_type_and_name(type_searched, tumor_name)]) >= nrelatives
+            [r for r in self.relatives if r.has_tumor and self.__has_tumor_name(r.tumors, [CANCER_DE_MAMA])]) >= 3
 
-    def __tumors_has_alistof_type_and_name(self, tumors, type_searched, tumor_name):
-        for t in tumors:
-            if t.tumor_type_name == type_searched and (
-                    t.name.find(tumor_name[0]) != -1 or t.name.find(tumor_name[1]) != -1):
+    def __informative_cmoh_test_1(self):
+        return len([r for r in self.relatives if
+                    (datetime.datetime.now().year() - r.birth_date.year()) >= 65 and r.gender == 'Mujer']) >= 3
+
+    def __informative_cmodh_test_2(self):
+        return len([r for r in self.relatives if
+                    r.has_tumor() and self.__has_tumor_type_and_name(r.tumors, TYPE_OF_TUMOR, [CANCER_DE_MAMA,
+                                                                                               CANCER_DE_OVARIO])]) >= 2 and self.__cmodh_test_2_2()
+
+    def __cmodh_test_2_2(self):
+        relatives_with_two_tumors = [r for r in self.relatives if len(r.tumors) >= 2]
+        ovario = [r for r in relatives_with_two_tumors if self.__has_tumor_name(r.tumors, [CANCER_DE_OVARIO])]
+        mama_and_ovario = [r for r in relatives_with_two_tumors if
+                           self.__has_tumor_name(r.tumors, [CANCER_DE_OVARIO, CANCER_DE_MAMA])]
+        mama_before_50 = [r for r in relatives_with_two_tumors if
+                          self.__has_tumor_name(r.tumors, [CANCER_DE_MAMA]) and (
+                              datetime.datetime.now().year() - r.birth_date.year() < 50)]
+        mama_bilateral = [r for r in relatives_with_two_tumors if
+                          self.__has_tumor_name(r.tumors, [CANCER_DE_MAMA_BILATERAL])]
+        mama_bilateral_before_50 = [r for r in mama_bilateral if
+                                    (datetime.datetime.now().year() - r.birth_date.year() < 50)]
+
+        if len(mama_and_ovario) >= 2:
+            if (len(mama_bilateral) >= 1 and mama_before_50 >= 1) or (
+                        len(set(mama_bilateral_before_50).intersection(mama_before_50)) >= 1) or len(ovario) >= 2:
                 return True
         return False
 
-    def __tumors_has_name(self, tumors, tumor_name):
+    def __informative_cmod_test_3(self):
+        relatives_with_two_tumors = [r for r in self.relatives if len(r.tumors) >= 2]
+        mama_and_ovario = [r for r in relatives_with_two_tumors if
+                           self.__has_tumor_name(r.tumors, [CANCER_DE_OVARIO, CANCER_DE_MAMA])]
+        mama_bilateral = [r for r in relatives_with_two_tumors if
+                          self.__has_tumor_name(r.tumors, [CANCER_DE_MAMA_BILATERAL])]
+        mama_bilateral_before_40 = [r for r in mama_bilateral if
+                                    (datetime.datetime.now().year() - r.birth_date.year() <= 40)]
+        mama_before_50 = [r for r in relatives_with_two_tumors if
+                          self.__has_tumor_name(r.tumors, [CANCER_DE_MAMA]) and (
+                              datetime.datetime.now().year() - r.birth_date.year() < 50)]
+        mama_varon = [r for r in relatives_with_two_tumors if
+                      self.__has_tumor_name(r.tumors, [CANCER_DE_MAMA]) and r.gender == 'Hombre']
+
+        if len(mama_and_ovario) >= 2 or len(mama_bilateral_before_40) >= 1 or len(mama_varon) >= 1 or len(
+                mama_before_50) >= 1:
+            return True
+        return False
+
+    def __has_tumor_type_and_name(self, tumors, type_searched, list_of_tumors):
         for t in tumors:
-            if t.name == tumor_name and (t.name.find(tumor_name) != -1):
+            if t.tumor_type_name == type_searched and t.name in list_of_tumors:
                 return True
         return False
 
+    def __has_tumor_name(self, tumors, list_of_tumors):
+        for t in tumors:
+            if t.name in list_of_tumors:
+                return True
+        return False
