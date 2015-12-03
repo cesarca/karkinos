@@ -1,7 +1,8 @@
 from datetime import datetime
 from operator import attrgetter
 from constants import TUMOR_PHENOTYPE, BENIGN_TUMOR, TYPE_OF_TUMOR, POLIPO_DE_COLON, LYNCH_TUMORS, \
-    POLIPOS, POLIPOSIS_ADENOMATOSA_FAMILIAR, APC, CANCER_DE_OVARIO, CANCER_DE_MAMA, CANCER_DE_MAMA_BILATERAL
+    POLIPOS, POLIPOSIS_ADENOMATOSA_FAMILIAR, APC, CANCER_DE_OVARIO, CANCER_DE_MAMA, CANCER_DE_MAMA_BILATERAL, \
+    CASO_INDICE, DIAGNOSIS_GARDNER, DIAGNOSIS_PAF, DIAGNOSIS_PAFA, DIAGNOSIS_MAMA
 
 
 class Karkinos:
@@ -10,6 +11,7 @@ class Karkinos:
         self.garner = Garner(patient.relatives)
         self.paf = PAF(patient.relatives)
         self.pafa = PAFA(patient.relatives)
+        self.cmoh = CMOH(patient.relatives)
 
     def search_most_young_phenotype(self, relatives):
         return next(r for r in sorted(relatives, key=attrgetter('birth_date')) if r.has_tumor)
@@ -20,8 +22,8 @@ class Karkinos:
                 if self.tumors_has_type(relative.tumors, TUMOR_PHENOTYPE):
                     return relative
                 else:
-                    return self.search_most_young_phenotype(relatives)
-        return None
+                    return CASO_INDICE, self.search_most_young_phenotype(relatives)
+        return "None", None
 
     def tumors_has_type(self, tumors, type_searched):
         for t in tumors:
@@ -29,8 +31,32 @@ class Karkinos:
                 return True
         return False
 
+    def diagnosis(self):
+        if self.garner.diagnosis():
+            return DIAGNOSIS_GARDNER, self.garner
+        elif self.paf.diagnosis():
+            return DIAGNOSIS_PAF, self.paf
+        elif self.pafa.diagnosis():
+            return DIAGNOSIS_PAFA, self.pafa
+        elif self.cmoh.diagnosis():
+            return DIAGNOSIS_MAMA, self.cmoh
+        return Healhty()
+
+
+class Healhty:
+
+    def get_informatives(self):
+        return "No"
+
+    def get_associated(self):
+        return "None"
+
+    def diagnosis(self):
+        return "No"
+
 
 class ECHND:
+
     def __init__(self, relatives):
         self.relatives = relatives
 
@@ -38,7 +64,7 @@ class ECHND:
         if self.__patients_with_more_age_than(3, 65):
             return True
         elif self.__number_of_patients_with_tumor_type(3, TYPE_OF_TUMOR):
-            if self.__patients_with_more_age_than(1, 50) and PAF(self.relatives).get_paf_diagnosis():
+            if self.__patients_with_more_age_than(1, 50) and PAF(self.relatives).diagnosis():
                 return True
             else:
                 return False
@@ -66,7 +92,7 @@ class ECHND:
     def __patients_with_lynch_tumors(self):
         return len([r for r in self.relatives if
                     len([t for t in r.tumors if t.tumor_type_name in LYNCH_TUMORS]) >= 1]) >= 1 or PAF(
-            self.relatives).get_paf_diagnosis()
+            self.relatives).diagnosis()
 
 
 class Garner:
@@ -76,10 +102,10 @@ class Garner:
     def get_informatives(self):
         return self.__garner()
 
-    def get_asociated(self):
+    def get_associated(self):
         return self.__garner()
 
-    def has_garner(self):
+    def diagnosis(self):
         return True if len(self.__garner()) >= 1 else False
 
     def __has_paf_and_benign(self, r):
@@ -96,11 +122,11 @@ class PAF:
     def __init__(self, relatives):
         self.relatives = relatives
 
-    def get_paf_informatives(self):
+    def get_informatives(self):
         return [r for r in self.relatives if self.__has_mutation(r) or self.__is_paf_informative(r)]
 
-    def get_paf_associated_cases(self):
-        return self.get_paf_informatives()
+    def get_associated(self):
+        return self.get_informatives()
 
     def __has_mutation(self, relative):
         return True if self.__tumors_has_type_and_name(relative.tumors, TYPE_OF_TUMOR, APC) else False
@@ -117,7 +143,7 @@ class PAF:
                 return True
         return False
 
-    def get_paf_diagnosis(self):
+    def diagnosis(self):
         return True if len([r for r in self.relatives if self.__is_paf_informative(r)]) >= 1 else False
 
 
@@ -125,16 +151,16 @@ class PAFA:
     def __init__(self, relatives):
         self.relatives = relatives
 
-    def get_pafa_informatives(self):
+    def get_informatives(self):
         return [r for r in self.relatives if not self.__has_mutation(r) or self.__is_pafa_informative(r)]
 
-    def get_pafa_associated_cases(self):
-        return self.get_pafa_informatives()
+    def get_associated(self):
+        return self.get_informatives()
 
     def __has_mutation(self, relative):
         return True if self.__tumors_has_type_and_name(relative.tumors, TYPE_OF_TUMOR, APC) else False
 
-    def get_pafa_diagnosis(self):
+    def diagnosis(self):
         return True if len([r for r in self.relatives if self.__is_pafa_informative(r)]) >= 1 else False
 
     def __tumors_has_type_and_name(self, tumors, type_searched, tumor_name):
@@ -155,13 +181,13 @@ class CMOH:
     def __init__(self, relatives):
         self.relatives = relatives
 
-    def is_informative(self):
+    def get_informatives(self):
         return True if self.__informative_cmoh_test_1() or self.__informative_cmodh_test_2() or self.__informative_cmod_test_3() else False
 
     def diagnosis(self):
-        return self.associated_cases()
+        return self.get_associated()
 
-    def associated_cases(self):
+    def get_associated(self):
         return self.__associated_cmoh_test_1() or self.__associated_cmoh_test_2() or self.__associated_cmoh_test_3()
 
     def __associated_cmoh_test_1(self):
